@@ -133,8 +133,15 @@ function init() {
             const fromHex = new Hex(data.from.q, data.from.r);
             const toHex = new Hex(data.to.q, data.to.r);
 
-            GameState.renderer.animateMove([fromHex, toHex], () => {
+            // Reconstruct path if available
+            let path = [fromHex, toHex];
+            if (data.path && Array.isArray(data.path)) {
+                path = data.path.map(p => new Hex(p.q, p.r));
+            }
+
+            GameState.renderer.animateMove(path, () => {
                 GameState.board.movePiece(fromHex, toHex);
+                GameState.renderer.lastMove = { from: fromHex, to: toHex }; // Store for highlighting
                 GameState.renderer.draw();
             });
         }
@@ -338,7 +345,8 @@ function handleHexClick(hex) {
                     GameState.socket.emit('makeMove', {
                         roomCode: GameState.currentRoomCode,
                         from: fromHex,
-                        to: hex
+                        to: hex,
+                        path: moveObj.path // Send full path
                     });
                 }
             });

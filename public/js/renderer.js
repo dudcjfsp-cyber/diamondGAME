@@ -89,6 +89,28 @@ export class Renderer {
             });
         }
 
+        // Last Move Highlight
+        if (this.lastMove) {
+            const startP = this.hexToPixel(this.lastMove.from);
+            const endP = this.hexToPixel(this.lastMove.to);
+
+            // Draw ghost circle at start position
+            this.ctx.beginPath();
+            this.ctx.arc(startP.x, startP.y, this.hexSize * 0.5, 0, Math.PI * 2);
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+
+            // Draw ring at end position
+            this.ctx.beginPath();
+            this.ctx.arc(endP.x, endP.y, this.hexSize * 0.7, 0, Math.PI * 2);
+            this.ctx.strokeStyle = '#facc15'; // Yellow highlight
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+        }
+
         // Draw Piece
         if (cell.player) {
             // Skip drawing the piece if it is currently animating (we draw it in animate loop)

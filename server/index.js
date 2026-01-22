@@ -195,6 +195,7 @@ io.on('connection', (socket) => {
     socket.to(data.roomCode).emit('moveMade', {
       from: data.from,
       to: data.to,
+      path: data.path, // Relay path
       player: currentPlayerId
     });
 
