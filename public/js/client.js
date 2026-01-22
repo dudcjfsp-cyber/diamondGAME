@@ -223,10 +223,33 @@ function updateTurnDisplay() {
     if (GameState.currentTurn === GameState.myPlayerId) {
         display.turn.innerText = "나의 턴!";
         display.turn.style.color = "#10b981";
+        showTurnNotification(); // Trigger animation
     } else {
         display.turn.innerText = `플레이어 ${GameState.currentTurn}의 턴`;
         display.turn.style.color = "white";
     }
+}
+
+function showTurnNotification() {
+    let notif = document.getElementById('turn-notification');
+    if (!notif) {
+        notif = document.createElement('div');
+        notif.id = 'turn-notification';
+        notif.className = 'notification-overlay';
+        document.body.appendChild(notif);
+    }
+
+    // Reset animation
+    notif.style.animation = 'none';
+    notif.offsetHeight; /* trigger reflow */
+    notif.style.animation = null;
+
+    notif.innerHTML = `<div style="font-size: 2rem; font-weight: bold; color: #10b981;">MY TURN!</div><div>당신의 차례입니다</div>`;
+
+    notif.style.display = 'flex';
+    setTimeout(() => {
+        notif.style.display = 'none';
+    }, 2000); // Hide after 2s
 }
 
 // ✅ 수정: 한 번만 초기화하도록 개선
