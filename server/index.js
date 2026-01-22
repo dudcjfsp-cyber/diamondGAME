@@ -74,14 +74,7 @@ io.on('connection', (socket) => {
     console.log(`Room ${roomCode} created by ${socket.id}`);
   });
 
-  socket.on('updateSettings', (data) => {
-    // data: { roomCode, playerCount }
-    const room = rooms[data.roomCode];
-    if (room && room.players[socket.id] && room.players[socket.id].id === 1) { // Only host knows ID 1 initially
-      room.settings.playerCount = data.playerCount;
-      io.to(data.roomCode).emit('settingsUpdated', room.settings);
-    }
-  });
+
 
   socket.on('playerReady', (roomCode) => {
     const room = rooms[roomCode];

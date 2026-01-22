@@ -249,7 +249,7 @@ function showTurnNotification() {
     notif.style.display = 'flex';
     setTimeout(() => {
         notif.style.display = 'none';
-    }, 2000); // Hide after 2s
+    }, 3000); // Hide after 3s (matches CSS animation)
 }
 
 // ✅ 수정: 한 번만 초기화하도록 개선
@@ -364,13 +364,7 @@ function handleHexClick(hex) {
     }
 }
 
-function updatePlayerCountUI(count) {
-    GameState.playerCount = count;
-    document.querySelectorAll('.btn-option').forEach(b => {
-        b.classList.remove('selected');
-        if (parseInt(b.dataset.value) === count) b.classList.add('selected');
-    });
-}
+
 
 function showMyColorNotification() {
     const colorNames = {

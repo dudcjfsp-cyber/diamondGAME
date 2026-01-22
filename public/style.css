@@ -263,59 +263,46 @@ canvas {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#chat-input {
-    padding: 8px;
-    font-size: 0.9rem;
+/* Notification Overlay */
+.notification-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.85);
+    padding: 20px 40px;
+    border-radius: 10px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.5rem;
+    z-index: 1000;
+    pointer-events: none;
+    /* Let clicks pass through if needed */
+    animation: fadeInOut 3s ease-in-out forwards;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
 }
 
-#btn-send-chat {
-    border: none;
-    background: var(--primary-color);
-    color: white;
-    border-radius: 6px;
-    padding: 0 12px;
-    cursor: pointer;
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+    }
 
-    /* Notification Overlay */
-    .notification-overlay {
-        position: fixed;
-        top: 50%;
-        left: 50%;
+    15% {
+        opacity: 1;
         transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.85);
-        padding: 20px 40px;
-        border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        font-size: 1.5rem;
-        z-index: 1000;
-        pointer-events: none;
-        /* Let clicks pass through if needed */
-        animation: fadeInOut 3s ease-in-out forwards;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
     }
 
-    @keyframes fadeInOut {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -40%);
-        }
-
-        15% {
-            opacity: 1;
-            transform: translate(-50%, -50%);
-        }
-
-        85% {
-            opacity: 1;
-            transform: translate(-50%, -50%);
-        }
-
-        100% {
-            opacity: 0;
-            transform: translate(-50%, -60%);
-        }
+    85% {
+        opacity: 1;
+        transform: translate(-50%, -50%);
     }
+
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+}
