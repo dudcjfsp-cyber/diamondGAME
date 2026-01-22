@@ -32,7 +32,7 @@ const inputs = {
 };
 
 const display = {
-    roomCode: document.getElementById('display-room-code'),
+    // roomCode removed
     turn: document.getElementById('current-turn-display')
 };
 
@@ -53,7 +53,7 @@ function init() {
     GameState.socket.on('roomCreated', (data) => {
         GameState.currentRoomCode = data.roomCode;
         GameState.myPlayerId = data.playerId;
-        display.roomCode.innerText = GameState.currentRoomCode;
+        // display.roomCode removed
         document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
         console.log('Room Created:', data);
 
@@ -65,7 +65,7 @@ function init() {
     GameState.socket.on('roomJoined', (data) => {
         GameState.currentRoomCode = data.roomCode;
         GameState.myPlayerId = data.playerId;
-        display.roomCode.innerText = GameState.currentRoomCode;
+        // display.roomCode removed
         document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
 
         // Direct to Game View
