@@ -513,30 +513,38 @@ function advanceSoloTurn() {
 }
 
 function performAITurn() {
-    const move = GameState.aiPlayer.calculateMove();
-    if (move) {
-        const { from, to, path } = move;
+    console.log('performAITurn called');
+    try {
+        const move = GameState.aiPlayer.calculateMove();
+        console.log('AI Calculated Move:', move);
 
-        // Logical Move
-        GameState.board.movePiece(from, to);
-        GameState.renderer.lastMove = { from, to };
+        if (move) {
+            const { from, to, path } = move;
 
-        // Animate
-        GameState.renderer.animateMove(path, () => {
-            GameState.renderer.draw();
+            // Logical Move
+            GameState.board.movePiece(from, to);
+            GameState.renderer.lastMove = { from, to };
 
-            // Check Win
-            if (GameState.board.checkWin(GameState.aiPlayer.id)) {
-                alert('AI가 승리했습니다! (AI Won!)');
-                location.reload();
-            } else {
-                advanceSoloTurn();
-            }
-        });
-    } else {
-        console.warn('AI has no valid moves?');
-        // Skip turn or end game? For now, skip.
-        advanceSoloTurn();
+            // Animate
+            GameState.renderer.animateMove(path, () => {
+                GameState.renderer.draw();
+
+                // Check Win
+                if (GameState.board.checkWin(GameState.aiPlayer.id)) {
+                    alert('AI가 승리했습니다! (AI Won!)');
+                    location.reload();
+                } else {
+                    advanceSoloTurn();
+                }
+            });
+        } else {
+            console.warn('AI has no valid moves?');
+            // Skip turn or end game? For now, skip.
+            advanceSoloTurn();
+        }
+    } catch (e) {
+        console.error('AI Turn Error:', e);
+        alert('AI 턴 중 오류 발생: ' + e.message);
     }
 }
 

@@ -30,6 +30,7 @@ export class AIPlayer {
     }
 
     calculateMove() {
+        console.log('AI calculating move for ID:', this.id);
         // 1. Find all my pieces
         const myPieces = [];
         for (const [key, cell] of this.board.grid.entries()) {
