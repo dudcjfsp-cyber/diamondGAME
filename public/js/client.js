@@ -43,6 +43,19 @@ function init() {
     // Socket Events
     GameState.socket.on('connect', () => {
         console.log('Connected to server');
+        // Auto-rejoin if we were in a game
+        if (GameState.currentRoomCode && GameState.myPlayerId) {
+            console.log('Attempting to rejoin room:', GameState.currentRoomCode);
+            GameState.socket.emit('rejoinGame', {
+                roomCode: GameState.currentRoomCode,
+                playerId: GameState.myPlayerId
+            });
+        }
+    });
+
+    GameState.socket.on('rejoined', (data) => {
+        console.log('Rejoined room successfully');
+        // Optional: Sync state if needed
     });
 
     // Error Handling

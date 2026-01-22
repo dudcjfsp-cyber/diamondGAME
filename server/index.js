@@ -154,12 +154,43 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('rejoinGame', (data) => {
+    const room = rooms[data.roomCode];
+    if (room) {
+      // Find player by ID
+      const player = Object.values(room.players).find(p => p.id === data.playerId);
+      if (player) {
+        // Remove old socket key if different
+        if (player.socket !== socket.id) {
+          delete room.players[player.socket];
+        }
+        // Update with new socket
+        player.socket = socket.id;
+        room.players[socket.id] = player;
+        socket.join(data.roomCode);
+
+        socket.emit('rejoined', {
+          roomCode: data.roomCode,
+          state: room.state
+        });
+        console.log(`Player ${data.playerId} rejoined room ${data.roomCode} with new socket ${socket.id}`);
+      }
+    }
+  });
+
   socket.on('makeMove', (data) => {
     const room = rooms[data.roomCode];
     if (!room) return;
 
     // Validate Turn
-    const currentPlayerId = room.players[socket.id].id;
+    const playerRecord = room.players[socket.id];
+    if (!playerRecord) {
+      // Socket not found in room (likely reconnected without rejoining)
+      socket.emit('error', '세션이 만료되었습니다. 새로고침 해주세요.');
+      return;
+    }
+
+    const currentPlayerId = playerRecord.id;
     const currentTurnId = room.state.turnOrder[room.state.currentTurnIndex];
 
     if (room.state.status !== 'playing' || currentPlayerId !== currentTurnId) {
