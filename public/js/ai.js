@@ -1,3 +1,5 @@
+import { Hex } from './hex.js';
+
 export class AIPlayer {
     constructor(playerId, board) {
         this.id = playerId;
@@ -16,15 +18,15 @@ export class AIPlayer {
         // Hex(0, 8) is the tip of the bottom triangle.
         // Hex(0, -8) is the tip of the top triangle.
 
-        if (id === 1) return { q: 0, r: 8 }; // Red aims for Bottom
-        if (id === 4) return { q: 0, r: -8 }; // Green aims for Top
+        if (id === 1) return new Hex(0, 8); // Red aims for Bottom
+        if (id === 4) return new Hex(0, -8); // Green aims for Top
 
         // Fallback for other IDs (not fully supported yet, but standard mapping)
         // P2 (Top Right) -> Target Bottom Left
         // P3 (Bottom Right) -> Target Top Left
         // P5 (Bottom Left) -> Target Top Right
         // P6 (Top Left) -> Target Bottom Right
-        return { q: 0, r: 0 };
+        return new Hex(0, 0);
     }
 
     calculateMove() {

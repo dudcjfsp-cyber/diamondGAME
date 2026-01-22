@@ -27,6 +27,10 @@ export class Hex {
         return this.q === other.q && this.r === other.r;
     }
 
+    distance(other) {
+        return (Math.abs(this.q - other.q) + Math.abs(this.r - other.r) + Math.abs(this.s - other.s)) / 2;
+    }
+
     toString() {
         return `${this.q},${this.r}`;
     }
