@@ -20,6 +20,10 @@ export const GameState = {
     renderer: null,
     isGameInitialized: false,
 
+    // Solo Mode State
+    isSoloMode: false,
+    aiPlayer: null,
+
     // Methods
     resetForNewGame() {
         this.isGameActive = false;

@@ -5,6 +5,7 @@ import { Board } from './board.js';
 import { Renderer } from './renderer.js';
 import { Hex } from './hex.js';
 import { GameState } from './gameState.js';
+import { AIPlayer } from './ai.js';
 
 // DOM Elements
 // DOM Elements
@@ -206,6 +207,10 @@ function init() {
             GameState.socket.emit('joinRoom', code);
         }
     });
+
+    btns.solo.addEventListener('click', () => {
+        startSoloGame();
+    });
 }
 
 function switchView(viewName) {
@@ -375,7 +380,22 @@ function handleHexClick(hex) {
             GameState.renderer.validMoves = [];
             GameState.renderer.lastMove = { from: fromHex, to: targetHex };
 
-            // 2. Emit Event Immediately (Reduced Latency)
+            // 2. Solo Mode / Network Mode Branch
+            if (GameState.isSoloMode) {
+                // Animate and Advance
+                GameState.renderer.animateMove(path, () => {
+                    GameState.renderer.draw();
+                    if (GameState.board.checkWin(GameState.myPlayerId)) {
+                        alert('당신이 이겼습니다! (You Won!)');
+                        location.reload();
+                    } else {
+                        advanceSoloTurn();
+                    }
+                });
+                return;
+            }
+
+            // 3. Emit Event Immediately (Reduced Latency)
             if (GameState.currentRoomCode) {
                 GameState.socket.emit('makeMove', {
                     roomCode: GameState.currentRoomCode,
@@ -449,6 +469,75 @@ function getColorHex(id) {
         4: '#22c55e', 5: '#06b6d4', 6: '#3b82f6'
     };
     return colors[id] || 'white';
+}
+
+// Solo Mode Logic
+function startSoloGame() {
+    console.log('Starting Solo Game (AI Mode)');
+
+    // Set State
+    GameState.isSoloMode = true;
+    GameState.isGameActive = true;
+    GameState.currentRoomCode = null; // No room
+
+    // Players: 1 (Human) vs 4 (AI)
+    GameState.myPlayerId = 1;
+    GameState.aiPlayer = new AIPlayer(4, GameState.board);
+
+    // Setup View
+    switchView('game');
+    initGame(2); // 2 Players setup
+
+    // Turn Setup
+    GameState.currentTurn = 1;
+    updateTurnDisplay();
+    showMyColorNotification();
+
+    // Hide Multiplayer buttons
+    document.getElementById('btn-host-start').classList.add('hidden');
+    document.getElementById('btn-player-ready').classList.add('hidden');
+    document.getElementById('game-room-code').innerText = "SOLO PRACTICE";
+}
+
+function advanceSoloTurn() {
+    // Toggle Turn (1 <-> 4)
+    GameState.currentTurn = (GameState.currentTurn === 1) ? 4 : 1;
+    updateTurnDisplay();
+
+    if (GameState.currentTurn === GameState.aiPlayer.id) {
+        // AI Turn
+        setTimeout(() => {
+            performAITurn();
+        }, 800); // 800ms delay for realism
+    }
+}
+
+function performAITurn() {
+    const move = GameState.aiPlayer.calculateMove();
+    if (move) {
+        const { from, to, path } = move;
+
+        // Logical Move
+        GameState.board.movePiece(from, to);
+        GameState.renderer.lastMove = { from, to };
+
+        // Animate
+        GameState.renderer.animateMove(path, () => {
+            GameState.renderer.draw();
+
+            // Check Win
+            if (GameState.board.checkWin(GameState.aiPlayer.id)) {
+                alert('AI가 승리했습니다! (AI Won!)');
+                location.reload();
+            } else {
+                advanceSoloTurn();
+            }
+        });
+    } else {
+        console.warn('AI has no valid moves?');
+        // Skip turn or end game? For now, skip.
+        advanceSoloTurn();
+    }
 }
 
 // Start
