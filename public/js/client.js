@@ -244,7 +244,7 @@ function showTurnNotification() {
     notif.offsetHeight; /* trigger reflow */
     notif.style.animation = null;
 
-    notif.innerHTML = `<div style="font-size: 2rem; font-weight: bold; color: #10b981;">MY TURN!</div><div>당신의 차례입니다</div>`;
+    notif.innerHTML = `<div style="font-size: 3rem; font-weight: 900; color: #facc15; text-shadow: 2px 2px 0px #dc2626, -2px -2px 0px #dc2626, 2px -2px 0px #dc2626, -2px 2px 0px #dc2626;">MY TURN!</div>`;
 
     notif.style.display = 'flex';
     setTimeout(() => {
