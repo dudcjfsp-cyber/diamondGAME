@@ -151,16 +151,6 @@ function init() {
             GameState.socket.emit('joinRoom', code);
         }
     });
-
-    // Player Count Selection
-    document.querySelectorAll('.btn-option').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            if (GameState.myPlayerId !== 1) return;
-
-            const count = parseInt(e.target.dataset.value);
-            GameState.socket.emit('updateSettings', { roomCode: GameState.currentRoomCode, playerCount: count });
-        });
-    });
 }
 
 function switchView(viewName) {
