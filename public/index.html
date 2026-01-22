@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>다이아몬드 게임 (Diamond Game)</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Lobby View -->
+        <div id="lobby-view" class="view active">
+            <h1 class="title">다이아몬드 게임</h1>
+            <p class="subtitle">온라인 멀티플레이어 전략 보드게임</p>
+
+            <div class="menu-container">
+                <button id="btn-create-room" class="btn primary">방 만들기</button>
+                <div class="join-container">
+                    <input type="text" id="input-room-code" placeholder="방 코드 입력">
+                    <button id="btn-join-room" class="btn secondary">참가하기</button>
+                </div>
+                <button id="btn-solo-play" class="btn success">혼자 하기 (연습)</button>
+            </div>
+        </div>
+
+        <!-- Room Setup View -->
+        <div id="setup-view" class="view hidden">
+            <h2 class="section-title">게임 설정</h2>
+            <div class="setup-options">
+                <label>참가 인원</label>
+                <div class="player-count-selector">
+                    <button class="btn-option" data-value="2">2인</button>
+                    <button class="btn-option" data-value="3">3인</button>
+                    <button class="btn-option" data-value="4">4인</button>
+                    <button class="btn-option selected" data-value="6">6인</button>
+                    <!-- 5 players is technically possible but usually disabled due to balance, adding if needed -->
+                    <button class="btn-option" data-value="5">5인</button>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button id="btn-start-game" class="btn primary">게임 시작</button>
+                <button id="btn-back-lobby" class="btn text">뒤로 가기</button>
+            </div>
+            <div id="room-info">
+                방 코드: <span id="display-room-code">대기 중...</span>
+            </div>
+        </div>
+
+        <!-- Game View -->
+        <div id="game-view" class="view hidden">
+            <div class="game-header">
+                <div class="header-left">
+                    <div class="room-badge">CODE: <span id="game-room-code">UNKNOWN</span></div>
+                    <div class="player-info" id="current-turn-display">대기 중...</div>
+                </div>
+
+                <div class="header-controls">
+                    <button id="btn-player-ready" class="btn success small hidden">준비 완료</button>
+                    <button id="btn-host-start" class="btn primary small hidden" disabled>게임 시작</button>
+                    <button id="btn-leave-game" class="btn small danger">나가기</button>
+                </div>
+            </div>
+
+            <div class="game-container">
+                <canvas id="game-canvas"></canvas>
+            </div>
+
+            <!-- Chat -->
+            <div id="chat-container">
+                <div id="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+                    <button id="btn-send-chat">전송</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/client.js" type="module"></script>
+</body>
+
+</html>
