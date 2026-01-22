@@ -170,7 +170,7 @@ export class Board {
             }
         }
 
-        this.resetPieces(6); // Default 6 players for test
+        this.resetPieces(2); // Default 2 players
     }
 
     addHex(hex, player) {

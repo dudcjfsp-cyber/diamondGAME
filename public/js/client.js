@@ -54,8 +54,40 @@ function init() {
     });
 
     GameState.socket.on('rejoined', (data) => {
-        console.log('Rejoined room successfully');
-        // Optional: Sync state if needed
+        console.log('Rejoined room successfully', data);
+        GameState.isGameActive = true;
+        GameState.currentRoomCode = data.roomCode;
+
+        switchView('game');
+
+        // Re-init game with inferred player count or max
+        // Since we don't have playerCount in data.state explicitly, we assume standard board.
+        // Actually we need valid moves, which depend on playerCount.
+        // Let's assume 2 for now as it's the default, or use max 6 is safer for 'isPlayerActive' logic if logic is not restrictive.
+        // Better: Server should send settings? But for now let's Init with 6 to be safe.
+        initGame(6);
+
+        // Restore Board State
+        if (data.state && data.state.board) {
+            // Clear current board
+            GameState.board.grid.forEach(cell => cell.player = null);
+
+            // Apply server state
+            Object.entries(data.state.board).forEach(([key, playerId]) => {
+                const cell = GameState.board.grid.get(key);
+                if (cell) cell.player = playerId;
+            });
+            GameState.renderer.draw();
+        }
+
+        // Restore Turn
+        if (data.state.turnOrder) {
+            const turnIndex = data.state.currentTurnIndex;
+            GameState.currentTurn = data.state.turnOrder[turnIndex];
+            updateTurnDisplay();
+        }
+
+        document.getElementById('game-room-code').innerText = data.roomCode;
     });
 
     // Error Handling
@@ -139,9 +171,12 @@ function init() {
                 path = data.path.map(p => new Hex(p.q, p.r));
             }
 
+            // 1. Update Logical State Immediately
+            GameState.board.movePiece(fromHex, toHex);
+            GameState.renderer.lastMove = { from: fromHex, to: toHex };
+
+            // 2. Animate Visuals
             GameState.renderer.animateMove(path, () => {
-                GameState.board.movePiece(fromHex, toHex);
-                GameState.renderer.lastMove = { from: fromHex, to: toHex }; // Store for highlighting
                 GameState.renderer.draw();
             });
         }
@@ -260,7 +295,7 @@ function showTurnNotification() {
 }
 
 // ✅ 수정: 한 번만 초기화하도록 개선
-function initGame(count = 6) {
+function initGame(count = 2) {
     console.log('Initializing game canvas with players:', count);
 
     const canvas = document.getElementById('game-canvas');
@@ -302,6 +337,8 @@ function handleCanvasClick(e) {
 }
 
 function handleHexClick(hex) {
+    if (!hex) return;
+
     if (!GameState.isGameActive) {
         console.warn('Game not active. Ignoring click.');
         return;
@@ -329,25 +366,34 @@ function handleHexClick(hex) {
         const moveObj = GameState.renderer.validMoves.find(m => m.hex.equals(hex));
         if (moveObj) {
             const fromHex = GameState.renderer.selectedHex;
+            const targetHex = hex;
+            const path = moveObj.path;
 
-            GameState.renderer.animateMove(moveObj.path, () => {
-                GameState.board.movePiece(fromHex, hex);
-                GameState.renderer.selectedHex = null;
-                GameState.renderer.validMoves = [];
+            // 1. Update Logical State Immediately
+            GameState.board.movePiece(fromHex, targetHex);
+            GameState.renderer.selectedHex = null;
+            GameState.renderer.validMoves = [];
+            GameState.renderer.lastMove = { from: fromHex, to: targetHex };
+
+            // 2. Emit Event Immediately (Reduced Latency)
+            if (GameState.currentRoomCode) {
+                GameState.socket.emit('makeMove', {
+                    roomCode: GameState.currentRoomCode,
+                    from: fromHex,
+                    to: targetHex,
+                    path: path
+                });
+            }
+
+            // 3. Animate Visuals
+            GameState.renderer.animateMove(path, () => {
                 GameState.renderer.draw();
 
+                // Check Win Condition after animation? Or before?
+                // Logic is already done. We can check now.
                 if (GameState.board.checkWin(GameState.myPlayerId)) {
                     console.log('YOU WON!');
                     GameState.socket.emit('claimWin', { roomCode: GameState.currentRoomCode });
-                }
-
-                if (GameState.currentRoomCode) {
-                    GameState.socket.emit('makeMove', {
-                        roomCode: GameState.currentRoomCode,
-                        from: fromHex,
-                        to: hex,
-                        path: moveObj.path // Send full path
-                    });
                 }
             });
             return;

@@ -63,7 +63,7 @@ io.on('connection', (socket) => {
     rooms[roomCode] = {
       players: {},
       state: {},
-      settings: { playerCount: 6 } // Default
+      settings: { playerCount: 2 } // Default
     };
 
     const playerId = 1;
@@ -135,6 +135,10 @@ io.on('connection', (socket) => {
         assignments: newAssignments
       });
 
+      // Initialize Server-Side Board State
+      room.state.board = initializeBoardState(room.state.turnOrder, actualCount);
+
+
       // Update lobby list with new colors
       io.to(roomCode).emit('playerUpdate', Object.values(room.players));
     } else {
@@ -164,9 +168,10 @@ io.on('connection', (socket) => {
 
         socket.emit('rejoined', {
           roomCode: data.roomCode,
-          state: room.state
+          state: room.state, // Now contains .board
+          playerId: player.id // Send back ID just in case
         });
-        console.log(`Player ${data.playerId} rejoined room ${data.roomCode} with new socket ${socket.id}`);
+        console.log(`Player ${data.playerId} (ID: ${player.id}) rejoined room ${data.roomCode}`);
       }
     }
   });
@@ -191,6 +196,12 @@ io.on('connection', (socket) => {
       return; // Ignore invalid move
     }
 
+    // Validate Path Security
+    if (!data.path || !Array.isArray(data.path)) {
+      console.warn(`Invalid path data from ${socket.id}`);
+      return;
+    }
+
     // Broadcast to room
     socket.to(data.roomCode).emit('moveMade', {
       from: data.from,
@@ -198,6 +209,19 @@ io.on('connection', (socket) => {
       path: data.path, // Relay path
       player: currentPlayerId
     });
+
+    // Update Server-Side Board State
+    const fromKey = `${data.from.q},${data.from.r}`;
+    const toKey = `${data.to.q},${data.to.r}`;
+
+    if (room.state.board[fromKey] === currentPlayerId) {
+      delete room.state.board[fromKey];
+      room.state.board[toKey] = currentPlayerId;
+    } else {
+      console.warn(`Sync Warn: Player ${currentPlayerId} moved from ${fromKey} but server thought it was ${room.state.board[fromKey]}`);
+      // For MVP, trust the move but log warning. Self-correction.
+      room.state.board[toKey] = currentPlayerId;
+    }
 
     // Update Turn
     room.state.currentTurnIndex = (room.state.currentTurnIndex + 1) % room.state.turnOrder.length;
@@ -225,3 +249,50 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+// Helper: Initialize Board State (Simplified Hex Logic)
+function initializeBoardState(turnOrder, playerCount) {
+  const grid = {}; // key: "q,r", value: playerId
+
+  // Helper to add hex
+  const add = (q, r, pid) => {
+    if (isPlayerActive(pid, playerCount)) {
+      grid[`${q},${r}`] = pid;
+    }
+  };
+
+  // Generate Board (Radius 4 + Tips)
+  for (let q = -8; q <= 8; q++) {
+    for (let r = -8; r <= 8; r++) {
+      const s = -q - r;
+      // Check board validity (Star shape)
+      const coords = [q, r, s];
+      const validCount = coords.filter(c => Math.abs(c) <= 4).length;
+
+      if (validCount >= 2) {
+        // Determine Zone
+        let p = null;
+        if (r < -4) p = 1;
+        else if (s < -4) p = 2;
+        else if (q > 4) p = 3;
+        else if (r > 4) p = 4;
+        else if (s > 4) p = 5;
+        else if (q < -4) p = 6;
+
+        if (p) {
+          add(q, r, p);
+        }
+      }
+    }
+  }
+  return grid;
+}
+
+function isPlayerActive(p, count) {
+  if (count === 2) return p === 1 || p === 4;
+  if (count === 3) return p === 1 || p === 3 || p === 5;
+  if (count === 4) return p === 2 || p === 3 || p === 5 || p === 6;
+  if (count === 6) return true;
+  if (count === 5) return p !== 4;
+  return false;
+}

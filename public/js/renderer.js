@@ -155,11 +155,26 @@ export class Renderer {
 
         // Find player color
         // Note: board state is not updated yet, so startHex describes the piece
-        const key = startHex.toString();
-        const cell = this.board.grid.get(key);
-        const player = cell ? cell.player : null;
+        // Find player color
+        // Robust check: Is the piece at start (Animation First) or ends (State First)?
+        const startKey = startHex.toString();
+        const endKey = path[path.length - 1].toString();
 
-        this.animatingPiece = { hex: startHex, player: player }; // Hide static piece
+        const startCell = this.board.grid.get(startKey);
+        const endCell = this.board.grid.get(endKey);
+
+        let player = null;
+        let hexToHide = startHex;
+
+        if (startCell && startCell.player) {
+            player = startCell.player;
+            hexToHide = startHex;
+        } else if (endCell && endCell.player) {
+            player = endCell.player;
+            hexToHide = path[path.length - 1];
+        }
+
+        this.animatingPiece = { hex: hexToHide, player: player }; // Hide static piece
 
         let pointIndex = 0;
         let progress = 0;
