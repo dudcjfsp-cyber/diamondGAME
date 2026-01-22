@@ -480,16 +480,16 @@ function startSoloGame() {
     GameState.isGameActive = true;
     GameState.currentRoomCode = null; // No room
 
-    // Players: 1 (Human) vs 4 (AI)
-    GameState.myPlayerId = 1;
-    GameState.aiPlayer = new AIPlayer(4, GameState.board);
+    // Players: 4 (Human, Bottom) vs 1 (AI, Top)
+    GameState.myPlayerId = 4;
+    GameState.aiPlayer = new AIPlayer(1, GameState.board);
 
     // Setup View
     switchView('game');
     initGame(2); // 2 Players setup
 
     // Turn Setup
-    GameState.currentTurn = 1;
+    GameState.currentTurn = 4; // User starts
     updateTurnDisplay();
     showMyColorNotification();
 
