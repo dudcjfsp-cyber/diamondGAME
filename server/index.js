@@ -144,6 +144,13 @@ io.on('connection', (socket) => {
 
       // Update lobby list with new colors
       io.to(roomCode).emit('playerUpdate', Object.values(room.players));
+    } else {
+      // Debug/Feedback: Why didn't it start?
+      if (players.length < 2) {
+        socket.emit('error', '게임을 시작하려면 최소 2명의 플레이어가 필요합니다.');
+      } else if (!allReady) {
+        socket.emit('error', '모든 플레이어가 준비(Ready) 상태여야 합니다.');
+      }
     }
   });
 

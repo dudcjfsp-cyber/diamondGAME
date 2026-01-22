@@ -7,9 +7,9 @@ import { Hex } from './hex.js';
 import { GameState } from './gameState.js';
 
 // DOM Elements
+// DOM Elements
 const views = {
     lobby: document.getElementById('lobby-view'),
-    setup: document.getElementById('setup-view'),
     game: document.getElementById('game-view')
 };
 
@@ -17,10 +17,63 @@ const btns = {
     create: document.getElementById('btn-create-room'),
     join: document.getElementById('btn-join-room'),
     solo: document.getElementById('btn-solo-play'),
-    start: document.getElementById('btn-start-game'),
-    back: document.getElementById('btn-back-lobby'),
+    // Setup view buttons removed
+    hostStart: document.getElementById('btn-host-start'), // Re-enable existing in-game button usage
     leave: document.getElementById('btn-leave-game')
 };
+
+// ... (in init) ...
+
+GameState.socket.on('roomCreated', (data) => {
+    GameState.currentRoomCode = data.roomCode;
+    GameState.myPlayerId = data.playerId;
+    document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
+    console.log('Room Created:', data);
+
+    // Direct to Game View
+    switchView('game');
+    prepareGameLobbyUI(true); // Host
+});
+
+GameState.socket.on('roomJoined', (data) => {
+    GameState.currentRoomCode = data.roomCode;
+    GameState.myPlayerId = data.playerId;
+    document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
+
+    // Direct to Game View
+    switchView('game');
+    console.log('Joined Room:', data);
+    prepareGameLobbyUI(false); // Guest
+});
+
+// Remove settingsUpdated handler
+
+GameState.socket.on('playerUpdate', (players) => {
+    console.log('Players updated:', players);
+    updateGameLobbyControls(players);
+});
+
+// ...
+
+// UI Event Listeners
+btns.create.addEventListener('click', () => {
+    GameState.socket.emit('createRoom');
+});
+
+// Use in-game start button
+btns.hostStart.addEventListener('click', () => {
+    GameState.socket.emit('startGame', GameState.currentRoomCode);
+});
+
+document.getElementById('btn-player-ready').addEventListener('click', () => {
+    GameState.socket.emit('playerReady', GameState.currentRoomCode);
+});
+
+// Remove setup view specific listeners (back, start from setup)
+
+btns.leave.addEventListener('click', () => {
+    location.reload();
+});
 
 const inputs = {
     roomCode: document.getElementById('input-room-code')
@@ -38,6 +91,11 @@ function init() {
     // Socket Events
     GameState.socket.on('connect', () => {
         console.log('Connected to server');
+    });
+
+    // Error Handling
+    GameState.socket.on('error', (msg) => {
+        alert(msg);
     });
 
     GameState.socket.on('roomCreated', (data) => {
@@ -128,7 +186,9 @@ function init() {
         display.roomCode.innerText = 'Creating...';
     });
 
-    document.getElementById('btn-host-start').addEventListener('click', () => {
+    // Fix: Attach to the correct 'Start Game' button in Setup View
+    btns.start.addEventListener('click', () => {
+        console.log('Start Game button clicked');
         GameState.socket.emit('startGame', GameState.currentRoomCode);
     });
 
@@ -169,14 +229,8 @@ function switchView(viewName) {
     GameState.currentPage = viewName;
 }
 
-// ✅ 수정: 게임 보드를 미리 초기화하지 않음
-function prepareLobbyUI(isHost) {
-    // Room Code 업데이트
-    if (GameState.currentRoomCode) {
-        document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
-        display.roomCode.innerText = GameState.currentRoomCode;
-    }
-
+// Game View Lobby State (Waiting for start)
+function prepareGameLobbyUI(isHost) {
     const readyBtn = document.getElementById('btn-player-ready');
     const startBtn = document.getElementById('btn-host-start');
 
@@ -185,7 +239,7 @@ function prepareLobbyUI(isHost) {
 
     if (isHost) {
         startBtn.classList.remove('hidden');
-        startBtn.disabled = true;
+        startBtn.disabled = true; // Wait for players
         display.turn.innerText = "플레이어 대기 중...";
     } else {
         readyBtn.classList.remove('hidden');
@@ -193,7 +247,10 @@ function prepareLobbyUI(isHost) {
     }
 }
 
-function updateLobbyControls(players) {
+function updateGameLobbyControls(players) {
+    // If game is active, don't mess with controls
+    if (GameState.isGameActive) return;
+
     const amHost = GameState.myPlayerId === 1;
     const allReady = players.every(p => p.id === 1 || p.ready);
     const playerCount = players.length;
@@ -205,7 +262,7 @@ function updateLobbyControls(players) {
             display.turn.innerText = "게임 시작 가능!";
         } else {
             startBtn.disabled = true;
-            display.turn.innerText = `대기 중... (${playerCount}/6)`;
+            display.turn.innerText = `대기 중... (${playerCount}/2)`;
         }
     } else {
         const me = players.find(p => p.id === GameState.myPlayerId);
