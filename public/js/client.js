@@ -1,9 +1,10 @@
-// Client-side logic
+// Client-side logic - Fixed version
 
 // Imports
 import { Board } from './board.js';
 import { Renderer } from './renderer.js';
 import { Hex } from './hex.js';
+import { GameState } from './gameState.js';
 
 // DOM Elements
 const views = {
@@ -18,145 +19,121 @@ const btns = {
     solo: document.getElementById('btn-solo-play'),
     start: document.getElementById('btn-start-game'),
     back: document.getElementById('btn-back-lobby'),
-    leave: document.getElementById('btn-leave-game'),
-    sendChat: document.getElementById('btn-send-chat')
+    leave: document.getElementById('btn-leave-game')
 };
 
 const inputs = {
-    roomCode: document.getElementById('input-room-code'),
-    chat: document.getElementById('chat-input')
+    roomCode: document.getElementById('input-room-code')
 };
 
 const display = {
     roomCode: document.getElementById('display-room-code'),
-    chatMessages: document.getElementById('chat-messages'),
     turn: document.getElementById('current-turn-display')
 };
 
-// Game State
-let currentPage = 'lobby';
-let playerCount = 6;
-let socket = null;
-let currentRoomCode = null;
-let myPlayerId = null;
-let currentTurn = null;
-let isGameActive = false;
-let amIReady = false;
-
 // Initialize
 function init() {
-    socket = io();
+    GameState.socket = io();
 
     // Socket Events
-    socket.on('connect', () => {
+    GameState.socket.on('connect', () => {
         console.log('Connected to server');
     });
 
-    socket.on('roomCreated', (data) => {
-        currentRoomCode = data.roomCode;
-        myPlayerId = data.playerId;
-        display.roomCode.innerText = currentRoomCode;
-        document.getElementById('game-room-code').innerText = currentRoomCode;
+    GameState.socket.on('roomCreated', (data) => {
+        GameState.currentRoomCode = data.roomCode;
+        GameState.myPlayerId = data.playerId;
+        display.roomCode.innerText = GameState.currentRoomCode;
+        document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
         console.log('Room Created:', data);
+
+        // ✅ Setup 뷰로 먼저 이동 (게임 보드는 아직 표시 안함)
+        switchView('setup');
         prepareLobbyUI(true); // Host
-        updatePlayerCountUI(6); // Default
+        updatePlayerCountUI(2); // Default to 2 Players
     });
 
-    socket.on('roomJoined', (data) => {
-        currentRoomCode = data.roomCode;
-        myPlayerId = data.playerId;
-        display.roomCode.innerText = currentRoomCode;
-        document.getElementById('game-room-code').innerText = currentRoomCode;
+    GameState.socket.on('roomJoined', (data) => {
+        GameState.currentRoomCode = data.roomCode;
+        GameState.myPlayerId = data.playerId;
+        display.roomCode.innerText = GameState.currentRoomCode;
+        document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
         switchView('setup');
         console.log('Joined Room:', data);
         prepareLobbyUI(false); // Guest
         if (data.settings) updatePlayerCountUI(data.settings.playerCount);
     });
 
-    socket.on('settingsUpdated', (settings) => {
+    GameState.socket.on('settingsUpdated', (settings) => {
         console.log('Settings updated:', settings);
         updatePlayerCountUI(settings.playerCount);
     });
 
-    socket.on('playerUpdate', (players) => {
+    GameState.socket.on('playerUpdate', (players) => {
         console.log('Players updated:', players);
         updateLobbyControls(players);
     });
 
-    socket.on('gameStarted', (data) => {
+    GameState.socket.on('gameStarted', (data) => {
         console.log('Game Started!', data);
-        isGameActive = true;
+        GameState.isGameActive = true;
 
-        if (data.assignments && socket.id in data.assignments) {
-            myPlayerId = data.assignments[socket.id];
+        if (data.assignments && GameState.socket.id in data.assignments) {
+            GameState.myPlayerId = data.assignments[GameState.socket.id];
         }
 
-        currentTurn = data.currentTurn;
+        GameState.currentTurn = data.currentTurn;
 
+        // ✅ 게임 시작 시에만 게임 뷰로 전환하고 초기화
         switchView('game');
 
-        // Init game with correct player count settings derived from turnOrder length
-        // (Active players count essentially)
         const activeCount = data.turnOrder.length;
-        initGame(activeCount);
+        initGame(activeCount); // 여기서 한 번만 초기화
 
         updateTurnDisplay();
-        showMyColorNotification(); // Show color
+        showMyColorNotification();
 
         document.getElementById('btn-host-start').classList.add('hidden');
         document.getElementById('btn-player-ready').classList.add('hidden');
     });
 
-    socket.on('turnUpdate', (data) => {
+    GameState.socket.on('turnUpdate', (data) => {
         console.log('Turn changed:', data.currentTurn);
-        currentTurn = data.currentTurn;
+        GameState.currentTurn = data.currentTurn;
         updateTurnDisplay();
     });
 
-    socket.on('gameOver', (data) => {
-        isGameActive = false;
+    GameState.socket.on('gameOver', (data) => {
+        GameState.isGameActive = false;
         alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
-        location.reload(); // Reset for now
+        location.reload();
     });
 
-    socket.on('moveMade', (data) => {
+    GameState.socket.on('moveMade', (data) => {
         console.log('Opponent moved:', data);
-        if (board) {
+        if (GameState.board && GameState.renderer) {
             const fromHex = new Hex(data.from.q, data.from.r);
             const toHex = new Hex(data.to.q, data.to.r);
 
-            // Reconstruct path locally? Or simple animation
-            // Remote move usually doesn't show complex path unless sent.
-            // Let's just animate straight line for now or teleport.
-            // Simple direct animation:
-            renderer.animateMove([fromHex, toHex], () => {
-                board.movePiece(fromHex, toHex);
-                renderer.draw();
+            GameState.renderer.animateMove([fromHex, toHex], () => {
+                GameState.board.movePiece(fromHex, toHex);
+                GameState.renderer.draw();
             });
         }
     });
 
     // UI Event Listeners
     btns.create.addEventListener('click', () => {
-        switchView('setup');
-        socket.emit('createRoom');
+        GameState.socket.emit('createRoom');
         display.roomCode.innerText = 'Creating...';
     });
 
-    btns.start.addEventListener('click', () => {
-        // "Game Start" button in Lobby is distinct from "Start Game" command
-        // Actually, "Game Start" button logic was existing. Let's merge.
-        // Wait, "btn-start-game" was the Lobby->Game transition.
-        // Now we transition on 'gameStarted' event.
-        // So btn-start-game is redundant or reused for Host.
-    });
-
     document.getElementById('btn-host-start').addEventListener('click', () => {
-        socket.emit('startGame', currentRoomCode);
+        GameState.socket.emit('startGame', GameState.currentRoomCode);
     });
 
     document.getElementById('btn-player-ready').addEventListener('click', () => {
-        socket.emit('playerReady', currentRoomCode);
+        GameState.socket.emit('playerReady', GameState.currentRoomCode);
     });
 
     btns.back.addEventListener('click', () => {
@@ -164,25 +141,24 @@ function init() {
     });
 
     btns.leave.addEventListener('click', () => {
-        // Disconnect/Leave room logic
-        location.reload(); // Simple reload to reset
+        location.reload();
     });
 
     btns.join.addEventListener('click', () => {
         const code = inputs.roomCode.value;
         if (code) {
             console.log('Joining room:', code);
-            socket.emit('joinRoom', code);
+            GameState.socket.emit('joinRoom', code);
         }
     });
 
     // Player Count Selection
     document.querySelectorAll('.btn-option').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            if (myPlayerId !== 1) return; // Only Host
+            if (GameState.myPlayerId !== 1) return;
 
             const count = parseInt(e.target.dataset.value);
-            socket.emit('updateSettings', { roomCode: currentRoomCode, playerCount: count });
+            GameState.socket.emit('updateSettings', { roomCode: GameState.currentRoomCode, playerCount: count });
         });
     });
 }
@@ -190,44 +166,26 @@ function init() {
 function switchView(viewName) {
     Object.values(views).forEach(el => el.classList.add('hidden'));
     views[viewName].classList.remove('hidden');
-    currentPage = viewName;
+    GameState.currentPage = viewName;
 }
 
+// ✅ 수정: 게임 보드를 미리 초기화하지 않음
 function prepareLobbyUI(isHost) {
-    // Show buttons based on role
-    // NOTE: These buttons are in 'header-controls' which is in 'game-view' (or 'setup-view'?)
-    // Wait, the buttons I added are in 'game-view'.
-    // BUT 'setup-view' is where we wait for players.
-    // The user said "Game Start button at top right".
-    // Usually this implies we are IN the room/lobby waiting area.
-    // My previous design had 'setup-view' as the waiting room.
-    // Let's move the actual GAME VIEW to be the waiting area too?
-    // OR add these buttons to 'setup-view'.
-
-    // User Requirement: "Start Game button in top right... Frozen until start"
-    // This implies we enter the Game Board view, but it's frozen.
-    // So:
-    switchView('game');
-    initGame(); // Show board
-
-    // GUARANTEE: Update Room Code Display
-    if (currentRoomCode) {
-        document.getElementById('game-room-code').innerText = currentRoomCode;
-        display.roomCode.innerText = currentRoomCode;
-    } else {
-        console.warn("prepareLobbyUI called but currentRoomCode is missing!");
+    // Room Code 업데이트
+    if (GameState.currentRoomCode) {
+        document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
+        display.roomCode.innerText = GameState.currentRoomCode;
     }
 
     const readyBtn = document.getElementById('btn-player-ready');
     const startBtn = document.getElementById('btn-host-start');
 
-    // Reset classes
     readyBtn.classList.add('hidden');
     startBtn.classList.add('hidden');
 
     if (isHost) {
         startBtn.classList.remove('hidden');
-        startBtn.disabled = true; // Disabled until others ready
+        startBtn.disabled = true;
         display.turn.innerText = "플레이어 대기 중...";
     } else {
         readyBtn.classList.remove('hidden');
@@ -236,9 +194,7 @@ function prepareLobbyUI(isHost) {
 }
 
 function updateLobbyControls(players) {
-    // Determine readiness
-    // Host (ID 1)
-    const amHost = myPlayerId === 1;
+    const amHost = GameState.myPlayerId === 1;
     const allReady = players.every(p => p.id === 1 || p.ready);
     const playerCount = players.length;
 
@@ -252,7 +208,7 @@ function updateLobbyControls(players) {
             display.turn.innerText = `대기 중... (${playerCount}/6)`;
         }
     } else {
-        const me = players.find(p => p.id === myPlayerId);
+        const me = players.find(p => p.id === GameState.myPlayerId);
         if (me && me.ready) {
             document.getElementById('btn-player-ready').innerText = "준비 취소";
             document.getElementById('btn-player-ready').classList.replace('success', 'secondary');
@@ -264,100 +220,100 @@ function updateLobbyControls(players) {
 }
 
 function updateTurnDisplay() {
-    if (currentTurn === myPlayerId) {
+    if (GameState.currentTurn === GameState.myPlayerId) {
         display.turn.innerText = "나의 턴!";
-        display.turn.style.color = "#10b981"; // Success color
+        display.turn.style.color = "#10b981";
     } else {
-        // Find player color hex?
-        display.turn.innerText = `플레이어 ${currentTurn}의 턴`;
+        display.turn.innerText = `플레이어 ${GameState.currentTurn}의 턴`;
         display.turn.style.color = "white";
     }
 }
 
-// Game State
-
-
-let board = null;
-let renderer = null;
-
+// ✅ 수정: 한 번만 초기화하도록 개선
 function initGame(count = 6) {
     console.log('Initializing game canvas with players:', count);
 
-    // Initialize Board
-    board = new Board();
-    board.resetPieces(count); // Apply Player Count settings
-
-    // Initialize Renderer
     const canvas = document.getElementById('game-canvas');
-    renderer = new Renderer(canvas);
-    renderer.setBoard(board);
 
-    // Handle Clicks
-    // Remove existing event listeners to avoid duplicates if init is called multiple times?
-    // For now simple reload handles it. But if we re-init:
-    const newCanvas = canvas.cloneNode(true);
-    canvas.parentNode.replaceChild(newCanvas, canvas);
-    renderer.canvas = newCanvas; // Update renderer ref
-    renderer.ctx = newCanvas.getContext('2d');
-    renderer.resize();
+    // ✅ 이미 초기화되었다면 리셋만 수행
+    if (GameState.isGameInitialized && GameState.board && GameState.renderer) {
+        console.log('Game already initialized, resetting pieces...');
+        GameState.board.resetPieces(count);
+        GameState.renderer.selectedHex = null;
+        GameState.renderer.validMoves = [];
+        GameState.renderer.draw();
+        return;
+    }
 
-    newCanvas.addEventListener('mousedown', (e) => {
-        const rect = newCanvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+    // ✅ 최초 초기화
+    GameState.board = new Board();
+    GameState.board.resetPieces(count);
 
-        const clickedHex = renderer.handleClick(x, y);
-        handleHexClick(clickedHex);
-    });
+    GameState.renderer = new Renderer(canvas);
+    GameState.renderer.setBoard(GameState.board);
+
+    // ✅ 이벤트 리스너를 한 번만 등록
+    canvas.addEventListener('mousedown', handleCanvasClick);
+
+    GameState.isGameInitialized = true;
+
+    console.log('Game initialized successfully');
 }
 
-// Refined handleHexClick for strict Turn enforcement and correct logic
+// ✅ 이벤트 핸들러를 별도 함수로 분리
+function handleCanvasClick(e) {
+    const canvas = document.getElementById('game-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const clickedHex = GameState.renderer.handleClick(x, y);
+    handleHexClick(clickedHex);
+}
+
 function handleHexClick(hex) {
-    if (!isGameActive) {
+    if (!GameState.isGameActive) {
         console.warn('Game not active. Ignoring click.');
         return;
     }
 
-    // Loose comparison in case of string/number mismatch
-    if (currentTurn != myPlayerId) {
-        console.warn(`Not my turn. Current: ${currentTurn}, Mine: ${myPlayerId}`);
+    if (GameState.currentTurn != GameState.myPlayerId) {
+        console.warn(`Not my turn. Current: ${GameState.currentTurn}, Mine: ${GameState.myPlayerId}`);
         return;
     }
 
     const key = hex.toString();
-    const cell = board.grid.get(key);
+    const cell = GameState.board.grid.get(key);
 
-    console.log(`Click at ${key}. Cell Owner: ${cell ? cell.player : 'None'}, My ID: ${myPlayerId}, Turn: ${currentTurn}`);
+    console.log(`Click at ${key}. Cell Owner: ${cell ? cell.player : 'None'}, My ID: ${GameState.myPlayerId}, Turn: ${GameState.currentTurn}`);
 
     if (!cell) {
-        renderer.selectedHex = null;
-        renderer.validMoves = [];
-        renderer.draw();
+        GameState.renderer.selectedHex = null;
+        GameState.renderer.validMoves = [];
+        GameState.renderer.draw();
         return;
     }
 
     // Attempt Move
-    if (renderer.selectedHex && !cell.player) {
-        const moveObj = renderer.validMoves.find(m => m.hex.equals(hex));
+    if (GameState.renderer.selectedHex && !cell.player) {
+        const moveObj = GameState.renderer.validMoves.find(m => m.hex.equals(hex));
         if (moveObj) {
-            const fromHex = renderer.selectedHex;
+            const fromHex = GameState.renderer.selectedHex;
 
-            // Animate
-            renderer.animateMove(moveObj.path, () => {
-                board.movePiece(fromHex, hex);
-                renderer.selectedHex = null;
-                renderer.validMoves = [];
-                renderer.draw();
+            GameState.renderer.animateMove(moveObj.path, () => {
+                GameState.board.movePiece(fromHex, hex);
+                GameState.renderer.selectedHex = null;
+                GameState.renderer.validMoves = [];
+                GameState.renderer.draw();
 
-                // Check Win Condition
-                if (board.checkWin(myPlayerId)) {
+                if (GameState.board.checkWin(GameState.myPlayerId)) {
                     console.log('YOU WON!');
-                    socket.emit('claimWin', { roomCode: currentRoomCode });
+                    GameState.socket.emit('claimWin', { roomCode: GameState.currentRoomCode });
                 }
 
-                if (currentRoomCode) {
-                    socket.emit('makeMove', {
-                        roomCode: currentRoomCode,
+                if (GameState.currentRoomCode) {
+                    GameState.socket.emit('makeMove', {
+                        roomCode: GameState.currentRoomCode,
                         from: fromHex,
                         to: hex
                     });
@@ -369,28 +325,24 @@ function handleHexClick(hex) {
 
     // Select own piece
     if (cell.player) {
-        if (cell.player != myPlayerId) {
-            console.log(`Cannot select: Owner ${cell.player} != MyID ${myPlayerId}`);
+        if (cell.player != GameState.myPlayerId) {
+            console.log(`Cannot select: Owner ${cell.player} != MyID ${GameState.myPlayerId}`);
             return;
         }
 
-        renderer.selectedHex = hex;
-        const moves = board.getValidMoves(hex);
-        renderer.validMoves = moves;
-        renderer.draw();
+        GameState.renderer.selectedHex = hex;
+        const moves = GameState.board.getValidMoves(hex);
+        GameState.renderer.validMoves = moves;
+        GameState.renderer.draw();
     } else {
-        renderer.selectedHex = null;
-        renderer.validMoves = [];
-        renderer.draw();
+        GameState.renderer.selectedHex = null;
+        GameState.renderer.validMoves = [];
+        GameState.renderer.draw();
     }
 }
 
-
-// Start
-init();
-
 function updatePlayerCountUI(count) {
-    playerCount = count;
+    GameState.playerCount = count;
     document.querySelectorAll('.btn-option').forEach(b => {
         b.classList.remove('selected');
         if (parseInt(b.dataset.value) === count) b.classList.add('selected');
@@ -402,9 +354,8 @@ function showMyColorNotification() {
         1: '빨강 (Red)', 2: '주황 (Orange)', 3: '노랑 (Yellow)',
         4: '초록 (Green)', 5: '청록 (Cyan)', 6: '파랑 (Blue)'
     };
-    const myColorName = colorNames[myPlayerId] || 'Unknown';
+    const myColorName = colorNames[GameState.myPlayerId] || 'Unknown';
 
-    // Create or update a notification element
     let notif = document.getElementById('color-notification');
     if (!notif) {
         notif = document.createElement('div');
@@ -413,7 +364,7 @@ function showMyColorNotification() {
         document.body.appendChild(notif);
     }
 
-    notif.innerHTML = `<div>당신은 <span style="color: ${getColorHex(myPlayerId)}; font-weight:bold;">${myColorName}</span> 플레이어입니다.</div>`;
+    notif.innerHTML = `<div>당신은 <span style="color: ${getColorHex(GameState.myPlayerId)}; font-weight:bold;">${myColorName}</span> 플레이어입니다.</div>`;
 
     notif.style.display = 'flex';
     setTimeout(() => {
@@ -428,3 +379,6 @@ function getColorHex(id) {
     };
     return colors[id] || 'white';
 }
+
+// Start
+init();

@@ -35,12 +35,8 @@
             <div class="setup-options">
                 <label>참가 인원</label>
                 <div class="player-count-selector">
-                    <button class="btn-option" data-value="2">2인</button>
-                    <button class="btn-option" data-value="3">3인</button>
-                    <button class="btn-option" data-value="4">4인</button>
-                    <button class="btn-option selected" data-value="6">6인</button>
-                    <!-- 5 players is technically possible but usually disabled due to balance, adding if needed -->
-                    <button class="btn-option" data-value="5">5인</button>
+                    <button class="btn-option selected" data-value="2">2인 (1 vs 1)</button>
+                    <!-- Simplified to 2-player only as requested -->
                 </div>
             </div>
             <div class="action-buttons">
@@ -71,14 +67,7 @@
                 <canvas id="game-canvas"></canvas>
             </div>
 
-            <!-- Chat -->
-            <div id="chat-container">
-                <div id="chat-messages"></div>
-                <div class="chat-input-area">
-                    <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
-                    <button id="btn-send-chat">전송</button>
-                </div>
-            </div>
+            <!-- Chat Removed -->
         </div>
     </div>
 
