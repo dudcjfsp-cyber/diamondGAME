@@ -24,56 +24,8 @@ const btns = {
 
 // ... (in init) ...
 
-GameState.socket.on('roomCreated', (data) => {
-    GameState.currentRoomCode = data.roomCode;
-    GameState.myPlayerId = data.playerId;
-    document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
-    console.log('Room Created:', data);
-
-    // Direct to Game View
-    switchView('game');
-    prepareGameLobbyUI(true); // Host
-});
-
-GameState.socket.on('roomJoined', (data) => {
-    GameState.currentRoomCode = data.roomCode;
-    GameState.myPlayerId = data.playerId;
-    document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
-
-    // Direct to Game View
-    switchView('game');
-    console.log('Joined Room:', data);
-    prepareGameLobbyUI(false); // Guest
-});
-
-// Remove settingsUpdated handler
-
-GameState.socket.on('playerUpdate', (players) => {
-    console.log('Players updated:', players);
-    updateGameLobbyControls(players);
-});
-
-// ...
-
-// UI Event Listeners
-btns.create.addEventListener('click', () => {
-    GameState.socket.emit('createRoom');
-});
-
-// Use in-game start button
-btns.hostStart.addEventListener('click', () => {
-    GameState.socket.emit('startGame', GameState.currentRoomCode);
-});
-
-document.getElementById('btn-player-ready').addEventListener('click', () => {
-    GameState.socket.emit('playerReady', GameState.currentRoomCode);
-});
-
-// Remove setup view specific listeners (back, start from setup)
-
-btns.leave.addEventListener('click', () => {
-    location.reload();
-});
+// Socket listeners removed from top-level (must be in init)
+// Event listeners moved to init()
 
 const inputs = {
     roomCode: document.getElementById('input-room-code')
@@ -105,10 +57,9 @@ function init() {
         document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
         console.log('Room Created:', data);
 
-        // ✅ Setup 뷰로 먼저 이동 (게임 보드는 아직 표시 안함)
-        switchView('setup');
-        prepareLobbyUI(true); // Host
-        updatePlayerCountUI(2); // Default to 2 Players
+        // Direct to Game View
+        switchView('game');
+        prepareGameLobbyUI(true); // Host
     });
 
     GameState.socket.on('roomJoined', (data) => {
@@ -116,20 +67,16 @@ function init() {
         GameState.myPlayerId = data.playerId;
         display.roomCode.innerText = GameState.currentRoomCode;
         document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
-        switchView('setup');
-        console.log('Joined Room:', data);
-        prepareLobbyUI(false); // Guest
-        if (data.settings) updatePlayerCountUI(data.settings.playerCount);
-    });
 
-    GameState.socket.on('settingsUpdated', (settings) => {
-        console.log('Settings updated:', settings);
-        updatePlayerCountUI(settings.playerCount);
+        // Direct to Game View
+        switchView('game');
+        console.log('Joined Room:', data);
+        prepareGameLobbyUI(false); // Guest
     });
 
     GameState.socket.on('playerUpdate', (players) => {
         console.log('Players updated:', players);
-        updateLobbyControls(players);
+        updateGameLobbyControls(players);
     });
 
     GameState.socket.on('gameStarted', (data) => {
@@ -183,21 +130,14 @@ function init() {
     // UI Event Listeners
     btns.create.addEventListener('click', () => {
         GameState.socket.emit('createRoom');
-        display.roomCode.innerText = 'Creating...';
     });
 
-    // Fix: Attach to the correct 'Start Game' button in Setup View
-    btns.start.addEventListener('click', () => {
-        console.log('Start Game button clicked');
+    btns.hostStart.addEventListener('click', () => {
         GameState.socket.emit('startGame', GameState.currentRoomCode);
     });
 
     document.getElementById('btn-player-ready').addEventListener('click', () => {
         GameState.socket.emit('playerReady', GameState.currentRoomCode);
-    });
-
-    btns.back.addEventListener('click', () => {
-        switchView('lobby');
     });
 
     btns.leave.addEventListener('click', () => {
