@@ -11,8 +11,6 @@ export class Renderer {
         this.playerColors = GameState.PLAYER_COLORS;
 
         this.resize();
-
-        this.resize();
         window.addEventListener('resize', () => this.resize());
 
         // Interaction state

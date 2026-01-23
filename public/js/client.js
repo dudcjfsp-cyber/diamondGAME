@@ -160,9 +160,16 @@ function init() {
     GameState.socket.on('gameOver', (data) => {
         GameState.isGameActive = false;
         alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
-        alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
-        clearSession(); // Clear session
+        clearSession();
         location.reload();
+    });
+
+    GameState.socket.on('disconnect', () => {
+        console.warn('Disconnected from server');
+        if (GameState.isGameActive) {
+            display.turn.innerText = '서버 연결 끊김... 재연결 시도 중';
+            display.turn.style.color = '#ef4444';
+        }
     });
 
     GameState.socket.on('moveMade', (data) => {
