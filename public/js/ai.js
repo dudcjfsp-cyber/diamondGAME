@@ -85,12 +85,25 @@ export class AIPlayer {
                 let zoneBonus = 0;
                 // Check if we are entering the deep target zone
                 // Target for P1 is r > 4. Target for P4 is r < -4.
-                const isTargetZone = (this.id === 1 && endHex.r > 4) || (this.id === 4 && endHex.r < -4);
-                if (isTargetZone) {
-                    zoneBonus += 50; // Increased from 15 to make goal zone entry top priority
+                const startInZone = (this.id === 1 && pieceHex.r > 4) || (this.id === 4 && pieceHex.r < -4);
+                const endInZone = (this.id === 1 && endHex.r > 4) || (this.id === 4 && endHex.r < -4);
+
+                // Only reward ENTERING the zone, not moving within it
+                if (endInZone && !startInZone) {
+                    zoneBonus += 50; // Entering the zone for the first time
                     // Provide extra incentive to reach the very tip
                     if (endHex.equals(this.targetPoint)) {
-                        zoneBonus += 30; // Increased from 10
+                        zoneBonus += 30;
+                    }
+                } else if (startInZone && endInZone) {
+                    // Already in zone - only reward if getting closer to tip
+                    const startTipDist = pieceHex.distance(this.targetPoint);
+                    const endTipDist = endHex.distance(this.targetPoint);
+                    if (endTipDist < startTipDist) {
+                        zoneBonus += 10; // Small bonus for moving deeper into zone
+                    } else {
+                        // Penalty for moving around aimlessly in zone
+                        zoneBonus -= 30;
                     }
                 }
 
