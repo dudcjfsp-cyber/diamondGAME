@@ -2,6 +2,7 @@
   "name": "diamond-game-kr",
   "version": "1.0.0",
   "description": "다이아몬드 게임 (Korean Diamond Game)",
+  "type": "module",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

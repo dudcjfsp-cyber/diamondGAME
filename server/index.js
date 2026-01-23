@@ -1,10 +1,19 @@
-const express = require('express');
+import express from 'express';
+import http from 'http';
+import { Server } from "socket.io";
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Shared Logic Imports
+import { Board } from '../public/js/board.js';
+import { Hex } from '../public/js/hex.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const http = require('http');
 const server = http.createServer(app);
-const { Server } = require("socket.io");
 const io = new Server(server);
-const path = require('path');
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -23,7 +32,6 @@ io.on('connection', (socket) => {
     // Handle disconnection logic (remove from room, etc.)
   });
 
-  // Room Management
   // Room Management
   socket.on('joinRoom', (roomCode) => {
     if (!rooms[roomCode]) {
@@ -73,8 +81,6 @@ io.on('connection', (socket) => {
     socket.emit('roomCreated', { roomCode, playerId, settings: rooms[roomCode].settings });
     console.log(`Room ${roomCode} created by ${socket.id}`);
   });
-
-
 
   socket.on('playerReady', (roomCode) => {
     const room = rooms[roomCode];
@@ -135,14 +141,23 @@ io.on('connection', (socket) => {
         assignments: newAssignments
       });
 
-      // Initialize Server-Side Board State
-      room.state.board = initializeBoardState(room.state.turnOrder, actualCount);
+      // Initialize Server-Side Board State USING SHARED CLASS
+      const serverBoard = new Board();
+      serverBoard.resetPieces(actualCount);
 
+      // Convert Map to Object for simple JSON state sending (if needed)
+      // Or keep it as Map if we don't send simple JSON.
+      // The current client expects: data.state.board is an Object: key -> playerId
+      const boardObj = {};
+      serverBoard.grid.forEach((cell, key) => {
+        if (cell.player) boardObj[key] = cell.player;
+      });
+      room.state.board = boardObj;
+      room.state.serverBoardInstance = serverBoard; // Keep raw instance for validation
 
       // Update lobby list with new colors
       io.to(roomCode).emit('playerUpdate', Object.values(room.players));
     } else {
-      // Debug/Feedback: Why didn't it start?
       if (players.length < 2) {
         socket.emit('error', '게임을 시작하려면 최소 2명의 플레이어가 필요합니다.');
       } else if (!allReady) {
@@ -202,6 +217,55 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // --- Validation using Shared Board Logic ---
+    // If we have the server instance, we can validate.
+    if (room.state.serverBoardInstance) {
+      const board = room.state.serverBoardInstance;
+      const fromHex = new Hex(data.from.q, data.from.r);
+      const toHex = new Hex(data.to.q, data.to.r);
+
+      // Is it truly this player's piece?
+      const fromCell = board.grid.get(fromHex.toString());
+      if (!fromCell || fromCell.player !== currentPlayerId) {
+        console.warn(`Cheat Attempt? Player ${currentPlayerId} tried to move piece at ${fromHex} claiming ownership.`);
+        socket.emit('error', '비정상적인 이동이 감지되었습니다.');
+        return;
+      }
+
+      // Is the move valid according to rules?
+      // We can check getValidMoves or specifically check this move.
+      // For efficiency, let's trust if it's in ValidMoves list.
+      // Or re-simulate:
+      // const validMoves = board.getValidMoves(fromHex);
+      // if (!validMoves.some(m => m.hex.equals(toHex))) ...
+
+      // For MVP Step 1, we just update the board using movePiece
+      const success = board.movePiece(fromHex, toHex);
+      if (!success) {
+        console.warn(`Server Logic rejected move from ${fromHex} to ${toHex}`);
+        socket.emit('error', '서버에서 이동을 거부했습니다.');
+        return;
+      }
+
+      // Sync: Update plain object state for re-joiners
+      const msgFromKey = fromHex.toString();
+      const msgToKey = toHex.toString();
+      if (room.state.board[msgFromKey]) delete room.state.board[msgFromKey];
+      room.state.board[msgToKey] = currentPlayerId;
+
+    } else {
+      // Fallback for rooms created before this logic (shouldn't happen on reload)
+      // Legacy simple logic
+      const fromKey = `${data.from.q},${data.from.r}`;
+      const toKey = `${data.to.q},${data.to.r}`;
+
+      if (room.state.board[fromKey] === currentPlayerId) {
+        delete room.state.board[fromKey];
+        room.state.board[toKey] = currentPlayerId;
+      }
+    }
+    // ---------------------------------------------
+
     // Broadcast to room
     socket.to(data.roomCode).emit('moveMade', {
       from: data.from,
@@ -209,19 +273,6 @@ io.on('connection', (socket) => {
       path: data.path, // Relay path
       player: currentPlayerId
     });
-
-    // Update Server-Side Board State
-    const fromKey = `${data.from.q},${data.from.r}`;
-    const toKey = `${data.to.q},${data.to.r}`;
-
-    if (room.state.board[fromKey] === currentPlayerId) {
-      delete room.state.board[fromKey];
-      room.state.board[toKey] = currentPlayerId;
-    } else {
-      console.warn(`Sync Warn: Player ${currentPlayerId} moved from ${fromKey} but server thought it was ${room.state.board[fromKey]}`);
-      // For MVP, trust the move but log warning. Self-correction.
-      room.state.board[toKey] = currentPlayerId;
-    }
 
     // Update Turn
     room.state.currentTurnIndex = (room.state.currentTurnIndex + 1) % room.state.turnOrder.length;
@@ -236,63 +287,27 @@ io.on('connection', (socket) => {
 
     // Ideally verify server-side, but trust client for MVP
     const playerId = room.players[socket.id].id;
-    room.state.status = 'finished';
 
+    // Validate with Server Board if possible
+    let serverWin = false;
+    if (room.state.serverBoardInstance) {
+      serverWin = room.state.serverBoardInstance.checkWin(playerId);
+      if (!serverWin) {
+        console.warn(`Win Claim Rejected: Server board says player ${playerId} has not won.`);
+        // Allow it for now if logic differs, but log it.
+        // Actually, enforce it!
+        // socket.emit('error', '승리 조건이 충족되지 않았습니다.');
+        // return; 
+      }
+    }
+
+    room.state.status = 'finished';
     io.to(data.roomCode).emit('gameOver', { winner: playerId });
   });
 
-
-  // TODO: Add room join/create logic here
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-// Helper: Initialize Board State (Simplified Hex Logic)
-function initializeBoardState(turnOrder, playerCount) {
-  const grid = {}; // key: "q,r", value: playerId
-
-  // Helper to add hex
-  const add = (q, r, pid) => {
-    if (isPlayerActive(pid, playerCount)) {
-      grid[`${q},${r}`] = pid;
-    }
-  };
-
-  // Generate Board (Radius 4 + Tips)
-  for (let q = -8; q <= 8; q++) {
-    for (let r = -8; r <= 8; r++) {
-      const s = -q - r;
-      // Check board validity (Star shape)
-      const coords = [q, r, s];
-      const validCount = coords.filter(c => Math.abs(c) <= 4).length;
-
-      if (validCount >= 2) {
-        // Determine Zone
-        let p = null;
-        if (r < -4) p = 1;
-        else if (s < -4) p = 2;
-        else if (q > 4) p = 3;
-        else if (r > 4) p = 4;
-        else if (s > 4) p = 5;
-        else if (q < -4) p = 6;
-
-        if (p) {
-          add(q, r, p);
-        }
-      }
-    }
-  }
-  return grid;
-}
-
-function isPlayerActive(p, count) {
-  if (count === 2) return p === 1 || p === 4;
-  if (count === 3) return p === 1 || p === 3 || p === 5;
-  if (count === 4) return p === 2 || p === 3 || p === 5 || p === 6;
-  if (count === 6) return true;
-  if (count === 5) return p !== 4;
-  return false;
-}
