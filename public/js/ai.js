@@ -84,9 +84,27 @@ export class AIPlayer {
             }
         }
 
-        // If no beneficial move (e.g. all blocked or in target), pick any valid move preventing stagnation?
-        // Greedy might get stuck if local optima. 
-        // But for Chinese Checkers, simple greedy usually works to just "go forward".
+        // If no beneficial move found, pick ANY valid move to avoid deadlock
+        if (!bestMove) {
+            console.warn('AI stuck! Searching for fallback move...');
+            const allMoves = [];
+            for (const pieceHex of myPieces) {
+                const moves = this.board.getValidMoves(pieceHex);
+                for (const move of moves) {
+                    allMoves.push({
+                        from: pieceHex,
+                        to: move.hex,
+                        path: move.path
+                    });
+                }
+            }
+
+            if (allMoves.length > 0) {
+                // Pick a random move
+                bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+                console.log('AI fallback move selected:', bestMove);
+            }
+        }
 
         return bestMove;
     }

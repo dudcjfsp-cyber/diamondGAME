@@ -150,6 +150,13 @@ export class Renderer {
             return;
         }
 
+        // Cancel existing animation if any
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.isAnimating = false;
+            this.animatingPiece = null;
+        }
+
         this.isAnimating = true;
         const startHex = path[0];
 
@@ -226,7 +233,7 @@ export class Renderer {
             this.ctx.fill();
             this.ctx.shadowColor = 'transparent';
 
-            requestAnimationFrame(animate);
+            this.animationFrameId = requestAnimationFrame(animate);
         };
 
         animate();
