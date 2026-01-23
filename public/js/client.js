@@ -72,7 +72,7 @@ function init() {
         // Restore Board State
         if (data.state && data.state.board) {
             // Clear current board
-            GameState.board.grid.forEach(cell => cell.player = null);
+            GameState.board.clear();
 
             // Apply server state
             Object.entries(data.state.board).forEach(([key, playerId]) => {
@@ -458,12 +458,10 @@ function handleHexClick(hex) {
 
 
 
+// ... (removed getColorHex)
+
 function showMyColorNotification() {
-    const colorNames = {
-        1: '빨강 (Red)', 2: '주황 (Orange)', 3: '노랑 (Yellow)',
-        4: '초록 (Green)', 5: '청록 (Cyan)', 6: '파랑 (Blue)'
-    };
-    const myColorName = colorNames[GameState.myPlayerId] || 'Unknown';
+    const myColorName = GameState.PLAYER_NAMES[GameState.myPlayerId] || 'Unknown';
 
     let notif = document.getElementById('color-notification');
     if (!notif) {
@@ -473,20 +471,13 @@ function showMyColorNotification() {
         document.body.appendChild(notif);
     }
 
-    notif.innerHTML = `<div>당신은 <span style="color: ${getColorHex(GameState.myPlayerId)}; font-weight:bold;">${myColorName}</span> 플레이어입니다.</div>`;
+    const colorHex = GameState.PLAYER_COLORS[GameState.myPlayerId] || 'white';
+    notif.innerHTML = `<div>당신은 <span style="color: ${colorHex}; font-weight:bold;">${myColorName}</span> 플레이어입니다.</div>`;
 
     notif.style.display = 'flex';
     setTimeout(() => {
         notif.style.display = 'none';
     }, 3000);
-}
-
-function getColorHex(id) {
-    const colors = {
-        1: '#ef4444', 2: '#f97316', 3: '#eab308',
-        4: '#22c55e', 5: '#06b6d4', 6: '#3b82f6'
-    };
-    return colors[id] || 'white';
 }
 
 // Solo Mode Logic

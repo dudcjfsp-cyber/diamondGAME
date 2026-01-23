@@ -177,9 +177,13 @@ export class Board {
         this.grid.set(hex.toString(), { hex, player, type: 'empty' });
     }
 
+    clear() {
+        this.grid.forEach(cell => cell.player = null);
+    }
+
     resetPieces(playerCount) {
         // Clear pieces
-        this.grid.forEach(cell => cell.player = null);
+        this.clear();
 
         // Define Home Zones (Tips)
         // 6 Tips.

@@ -1,5 +1,6 @@
 // public/js/renderer.js
 import { pixelToHex } from './hex.js';
+import { GameState } from './gameState.js';
 
 export class Renderer {
     constructor(canvas) {
@@ -7,16 +8,9 @@ export class Renderer {
         this.ctx = canvas.getContext('2d');
         this.hexSize = 25; // Radius of hex
         this.board = null;
+        this.playerColors = GameState.PLAYER_COLORS;
 
-        // Colors for 6 players
-        this.playerColors = {
-            1: '#ef4444', // Red (Top)
-            2: '#f97316', // Orange (Top Right)
-            3: '#eab308', // Yellow (Bottom Right)
-            4: '#22c55e', // Green (Bottom)
-            5: '#06b6d4', // Cyan (Bottom Left)
-            6: '#3b82f6'  // Blue (Top Left)
-        };
+        this.resize();
 
         this.resize();
         window.addEventListener('resize', () => this.resize());

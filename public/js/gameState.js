@@ -35,5 +35,19 @@ export const GameState = {
 
     setSocket(socketInstance) {
         this.socket = socketInstance;
+    },
+
+    // Constants
+    PLAYER_COLORS: {
+        1: '#ef4444', // Red (Top)
+        2: '#f97316', // Orange (Top Right)
+        3: '#eab308', // Yellow (Bottom Right)
+        4: '#22c55e', // Green (Bottom)
+        5: '#06b6d4', // Cyan (Bottom Left)
+        6: '#3b82f6'  // Blue (Top Left)
+    },
+    PLAYER_NAMES: {
+        1: '빨강 (Red)', 2: '주황 (Orange)', 3: '노랑 (Yellow)',
+        4: '초록 (Green)', 5: '청록 (Cyan)', 6: '파랑 (Blue)'
     }
 };
