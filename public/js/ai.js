@@ -4,41 +4,26 @@ export class AIPlayer {
     constructor(playerId, board) {
         this.id = playerId;
         this.board = board;
-        // Player 1 (Red/Top) targets Zone 4 (Green/Bottom)
-        this.targetZone = this.getTargetZoneHexes();
+        this.targetPoint = this.getTargetPoint();
     }
 
-    getTargetZoneHexes() {
-        // Hardcoded for Player 1 aiming at Player 4's starting zone (Bottom)
-        // Zone 4 is defined by r > 4. Max r is 8.
-        // The tip is (0,8). The base is row r=5.
-        // Coordinates for Zone 4 (Bottom Triangle):
-        // r=5: (-4,5), (-3,5), (-2,5), (-1,5) ... wait, q+r+s=0.
-        // Let's use the property: Standard board radius 4.
-        // Zone 4: r > 4.
-        // List of Hexes in Zone 4 (The Goal):
-        // r=5: q=0..-? No.
-        // Let's use the loop to find them.
-        // Actually, let's just use a target CENTER point for general direction,
-        // and a specific logic to fill the zone.
+    getTargetPoint() {
+        // Dynamic target based on player ID
+        // Player 1 (Top) -> Target Bottom (0, 8)
+        // Player 4 (Bottom) -> Target Top (0, -8)
+        // Others can be added as needed.
+        if (this.id === 1) return new Hex(0, 8);
+        if (this.id === 4) return new Hex(0, -8);
 
-        // For efficiency, we'll generate them once.
-        return [
-            new Hex(0, 8), // Tip
-            new Hex(-1, 7), new Hex(0, 7), // Row 7
-            new Hex(-2, 6), new Hex(-1, 6), new Hex(0, 6), // Row 6
-            new Hex(-3, 5), new Hex(-2, 5), new Hex(-1, 5), new Hex(0, 5) // Row 5
-            // Note: The exact q coordinates depend on the board system.
-            // In typical axial (pointy top):
-            // Bottom triangle: x (q) is centered?
-            // If (0,0) is center. (0,8) is bottom.
-            // (1,7) and (0,7)? No.
-            // Let's stick to the heuristic: maximize 'r'.
-        ];
+        // Fallback for other players (approximated based on board structure)
+        if (this.id === 2) return new Hex(-8, 4); // Top-Right -> Bottom-Left?
+        if (this.id === 5) return new Hex(8, -4); // Bottom-Left -> Top-Right?
+        // ... simpler to default to center if unknown, but for 1v1 (P1 vs P4) this covers it.
+        return new Hex(0, 0);
     }
 
     calculateMove() {
-        console.log('AI calculating move for ID:', this.id);
+        // console.log('AI calculating move for ID:', this.id);
         const myPieces = [];
         for (const [key, cell] of this.board.grid.entries()) {
             if (cell.player === this.id) {
@@ -50,58 +35,69 @@ export class AIPlayer {
         let bestScore = -Infinity;
         const allMoves = [];
 
-        // Target Point (Deepest point of target zone)
-        const targetPoint = new Hex(0, 8);
-
         for (const pieceHex of myPieces) {
             const moves = this.board.getValidMoves(pieceHex);
 
             for (const move of moves) {
                 const endHex = move.hex;
+                // Store move for fallback
                 allMoves.push({ from: pieceHex, to: endHex, path: move.path });
 
                 // --- Scoring Heuristics ---
 
                 // 1. Distance Score (Main Driver)
-                // How much closer do we get to the absolute bottom?
-                const startDist = pieceHex.distance(targetPoint);
-                const endDist = endHex.distance(targetPoint);
-                const distScore = (startDist - endDist) * 10; // Base weight
+                // How much closer do we get to the target?
+                const startDist = pieceHex.distance(this.targetPoint);
+                const endDist = endHex.distance(this.targetPoint);
+
+                // Diff: Positive means we got closer.
+                const distDiff = startDist - endDist;
+                const distScore = distDiff * 10;
 
                 // 2. Jump Bonus (Efficiency)
-                // Reward moving further in one turn.
-                // Path length 2 = 1 step. Path length 3 = jump over 1.
-                // Hop distance: dist(from, to).
-                const lookaheadDist = pieceHex.distance(endHex);
+                // Reward covering distance, but only if it's broadly in the right direction or neutral?
+                // Actually, long jumps are good, but not if they go backwards.
+                const moveDist = pieceHex.distance(endHex);
                 let jumpBonus = 0;
-                if (lookaheadDist > 1) {
-                    jumpBonus = lookaheadDist * 3; // +3 points per hex jumped (Reduced from 5)
+                if (moveDist > 1) { // It's a jump (path length > 1 step)
+                    // Only reward jump if it doesn't lose too much ground
+                    if (distDiff >= -1) {
+                        jumpBonus = moveDist * 2.0;
+                    }
                 }
 
                 // 3. Center Bonus (Alignment)
-                // Keep 'q' close to 0 to avoid straying to sides.
-                const centerBonus = (Math.abs(pieceHex.q) - Math.abs(endHex.q)) * 2;
+                // penalize straying too far to the edges (high abs(q) or s depending on axis)
+                // For P1/P4 (Vertical), q is the horizontal deviation.
+                const centerBonus = (Math.abs(pieceHex.q) - Math.abs(endHex.q)) * 1.0;
 
                 // 4. Trailing Piece Bonus (Lag Prevention)
-                // If this piece is far from target (startDist is high), give it priority.
-                // STRONG bonus to move trailing pieces (Lag Prevention).
-                // Was 0.5, Increased to 2.0 to outweigh small jumps of leading pieces.
-                const lagBonus = startDist * 2.0;
+                // CRITICAL FIX: Only apply this bonus if the move actually advances (distDiff > 0).
+                // Previously, this was unconditional, causing back pieces to make useless lateral jumps 
+                // just because they had high 'startDist'.
+                let lagBonus = 0;
+                if (distDiff > 0) {
+                    // Give extra weight to moving pieces that are far behind
+                    lagBonus = startDist * 2.5;
+                }
 
                 // 5. Target Zone Logic (Filling)
-                // If destination is IN target zone (r > 4), it's very good.
-                // If destination is the TIP (0,8), it's excellent.
                 let zoneBonus = 0;
-                if (endHex.r > 4) {
-                    zoneBonus += 20;
-                    // Verify if we are blocking?
-                    // Simple greedy: just get in.
+                // Check if we are entering the deep target zone
+                // Target for P1 is r > 4. Target for P4 is r < -4.
+                const isTargetZone = (this.id === 1 && endHex.r > 4) || (this.id === 4 && endHex.r < -4);
+                if (isTargetZone) {
+                    zoneBonus += 15;
+                    // Provide extra incentive to reach the very tip
+                    if (endHex.equals(this.targetPoint)) {
+                        zoneBonus += 10;
+                    }
                 }
 
                 let score = distScore + jumpBonus + centerBonus + lagBonus + zoneBonus;
 
                 // Random tie-breaker
-                score += Math.random();
+                score += Math.random() * 0.5;
 
                 if (score > bestScore) {
                     bestScore = score;
@@ -114,11 +110,9 @@ export class AIPlayer {
             }
         }
 
-        // Fallback: Random move if no positive score found (or trapped)
+        // Fallback: Random move if no moves found (shouldn't happen often)
         if (!bestMove && allMoves.length > 0) {
-            console.warn('AI stuck! Searching for fallback move...');
-            // Try to find ANY move that doesn't retreat too much?
-            // Or just random.
+            // console.warn('AI performing fallback random move.');
             bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
         }
 
