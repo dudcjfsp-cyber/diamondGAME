@@ -75,7 +75,7 @@ export class AIPlayer {
                 const lookaheadDist = pieceHex.distance(endHex);
                 let jumpBonus = 0;
                 if (lookaheadDist > 1) {
-                    jumpBonus = lookaheadDist * 5; // +5 points per hex jumped
+                    jumpBonus = lookaheadDist * 3; // +3 points per hex jumped (Reduced from 5)
                 }
 
                 // 3. Center Bonus (Alignment)
@@ -84,11 +84,9 @@ export class AIPlayer {
 
                 // 4. Trailing Piece Bonus (Lag Prevention)
                 // If this piece is far from target (startDist is high), give it priority.
-                // Normalize roughly: if distance is 10, bonus is small.
-                // We want to move pieces that are 'behind'.
-                // Compare to average distance of all pieces?
-                // Simple version: prioritize pieces with larger startDist.
-                const lagBonus = startDist * 0.5;
+                // STRONG bonus to move trailing pieces (Lag Prevention).
+                // Was 0.5, Increased to 2.0 to outweigh small jumps of leading pieces.
+                const lagBonus = startDist * 2.0;
 
                 // 5. Target Zone Logic (Filling)
                 // If destination is IN target zone (r > 4), it's very good.
