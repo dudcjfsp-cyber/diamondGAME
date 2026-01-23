@@ -83,10 +83,15 @@ export class AIPlayer {
 
                 // 5. Target Zone Logic (Filling)
                 let zoneBonus = 0;
-                // Check if we are entering the deep target zone
-                // Target for P1 is r > 4. Target for P4 is r < -4.
-                const startInZone = (this.id === 1 && pieceHex.r > 4) || (this.id === 4 && pieceHex.r < -4);
-                const endInZone = (this.id === 1 && endHex.r > 4) || (this.id === 4 && endHex.r < -4);
+
+                // Get the correct target zone ID for this player
+                const targetZoneId = this.board.getTargetZone(this.id);
+
+                // Check if start/end positions are in the target zone
+                const startCell = this.board.grid.get(pieceHex.toString());
+                const endCell = this.board.grid.get(endHex.toString());
+                const startInZone = startCell && startCell.zone === targetZoneId;
+                const endInZone = endCell && endCell.zone === targetZoneId;
 
                 // Only reward ENTERING the zone, not moving within it
                 if (endInZone && !startInZone) {
