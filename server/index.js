@@ -233,13 +233,24 @@ io.on('connection', (socket) => {
       }
 
       // Is the move valid according to rules?
-      // We can check getValidMoves or specifically check this move.
-      // For efficiency, let's trust if it's in ValidMoves list.
-      // Or re-simulate:
-      // const validMoves = board.getValidMoves(fromHex);
-      // if (!validMoves.some(m => m.hex.equals(toHex))) ...
+      // Strict Verification:
+      // 1. Get all legal moves from 'fromHex'
+      const validMoves = board.getValidMoves(fromHex);
 
-      // For MVP Step 1, we just update the board using movePiece
+      // 2. Check if 'toHex' exists in the valid destinations
+      const matchingMove = validMoves.find(m => m.hex.equals(toHex));
+
+      if (!matchingMove) {
+        console.warn(`Cheat Attempt? Player ${currentPlayerId} tried invalid move from ${fromHex} to ${toHex}`);
+        socket.emit('error', '유효하지 않은 이동입니다.');
+        return;
+      }
+
+      // 3. (Optional) Path Validation
+      // If we want to be very strict, we can check if the path matches too.
+      // But for now, verifying destination is good enough for Anti-Teleport.
+
+      // Execute Move on Server Board
       const success = board.movePiece(fromHex, toHex);
       if (!success) {
         console.warn(`Server Logic rejected move from ${fromHex} to ${toHex}`);
