@@ -39,6 +39,7 @@ const display = {
 
 // Initialize
 function init() {
+    loadSession(); // Restore session if available
     GameState.socket = io();
 
     // Socket Events
@@ -99,6 +100,7 @@ function init() {
     GameState.socket.on('roomCreated', (data) => {
         GameState.currentRoomCode = data.roomCode;
         GameState.myPlayerId = data.playerId;
+        saveSession(data.roomCode, data.playerId); // Persist
         // display.roomCode removed
         document.getElementById('game-room-code').innerText = GameState.currentRoomCode;
         console.log('Room Created:', data);
@@ -117,6 +119,7 @@ function init() {
         // Direct to Game View
         switchView('game');
         console.log('Joined Room:', data);
+        saveSession(data.roomCode, data.playerId); // Persist
         prepareGameLobbyUI(false); // Guest
     });
 
@@ -157,10 +160,24 @@ function init() {
     GameState.socket.on('gameOver', (data) => {
         GameState.isGameActive = false;
         alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
+        alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
+        clearSession(); // Clear session
         location.reload();
     });
 
     GameState.socket.on('moveMade', (data) => {
+        // Prevent Double Animation (My move coming back from server)
+        if (data.playerId === GameState.myPlayerId) return;
+
+        // Robust Fallback: Check if move matches my last local move exactly
+        if (GameState.renderer.lastMove &&
+            data.from.q === GameState.renderer.lastMove.from.q &&
+            data.from.r === GameState.renderer.lastMove.from.r &&
+            data.to.q === GameState.renderer.lastMove.to.q &&
+            data.to.r === GameState.renderer.lastMove.to.r) {
+            return;
+        }
+
         console.log('Opponent moved:', data);
         if (GameState.board && GameState.renderer) {
             const fromHex = new Hex(data.from.q, data.from.r);
@@ -197,6 +214,7 @@ function init() {
     });
 
     btns.leave.addEventListener('click', () => {
+        clearSession();
         location.reload();
     });
 
@@ -546,6 +564,27 @@ function performAITurn() {
         console.error('AI Turn Error:', e);
         alert('AI 턴 중 오류 발생: ' + e.message);
     }
+}
+
+// Session Management
+function saveSession(roomCode, playerId) {
+    sessionStorage.setItem('cc_roomCode', roomCode);
+    sessionStorage.setItem('cc_playerId', playerId);
+}
+
+function loadSession() {
+    const r = sessionStorage.getItem('cc_roomCode');
+    const p = sessionStorage.getItem('cc_playerId');
+    if (r && p) {
+        GameState.currentRoomCode = r;
+        GameState.myPlayerId = parseInt(p);
+        console.log('Restored session:', r, p);
+    }
+}
+
+function clearSession() {
+    sessionStorage.removeItem('cc_roomCode');
+    sessionStorage.removeItem('cc_playerId');
 }
 
 // Start
