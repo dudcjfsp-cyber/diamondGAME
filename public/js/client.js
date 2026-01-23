@@ -159,9 +159,13 @@ function init() {
 
     GameState.socket.on('gameOver', (data) => {
         GameState.isGameActive = false;
-        alert(`게임 종료! 플레이어 ${data.winner} 승리!`);
+        if (data.winner === GameState.myPlayerId) {
+            showVictoryScreen();
+        } else {
+            showDefeatScreen();
+        }
         clearSession();
-        location.reload();
+        setTimeout(() => location.reload(), 3500);
     });
 
     GameState.socket.on('disconnect', () => {
@@ -411,8 +415,8 @@ function handleHexClick(hex) {
                 GameState.renderer.animateMove(path, () => {
                     GameState.renderer.draw();
                     if (GameState.board.checkWin(GameState.myPlayerId)) {
-                        alert('당신이 이겼습니다! (You Won!)');
-                        location.reload();
+                        showVictoryScreen();
+                        setTimeout(() => location.reload(), 3500);
                     } else {
                         advanceSoloTurn();
                     }
@@ -438,6 +442,7 @@ function handleHexClick(hex) {
                 // Logic is already done. We can check now.
                 if (GameState.board.checkWin(GameState.myPlayerId)) {
                     console.log('YOU WON!');
+                    showVictoryScreen();
                     GameState.socket.emit('claimWin', { roomCode: GameState.currentRoomCode });
                 }
             });
@@ -485,6 +490,50 @@ function showMyColorNotification() {
     setTimeout(() => {
         notif.style.display = 'none';
     }, 3000);
+}
+
+function showVictoryScreen() {
+    let screen = document.getElementById('victory-screen');
+    if (!screen) {
+        screen = document.createElement('div');
+        screen.id = 'victory-screen';
+        screen.className = 'game-result-screen';
+        document.body.appendChild(screen);
+    }
+
+    screen.innerHTML = `
+        <div class="result-content victory-content">
+            <div class="result-icon">🏆</div>
+            <div class="result-title">VICTORY!</div>
+            <div class="result-subtitle">승리하셨습니다!</div>
+        </div>
+    `;
+    screen.style.display = 'flex';
+
+    // Trigger animation
+    setTimeout(() => screen.classList.add('show'), 10);
+}
+
+function showDefeatScreen() {
+    let screen = document.getElementById('defeat-screen');
+    if (!screen) {
+        screen = document.createElement('div');
+        screen.id = 'defeat-screen';
+        screen.className = 'game-result-screen';
+        document.body.appendChild(screen);
+    }
+
+    screen.innerHTML = `
+        <div class="result-content defeat-content">
+            <div class="result-icon">🚩</div>
+            <div class="result-title">DEFEAT</div>
+            <div class="result-subtitle">패배하셨습니다</div>
+        </div>
+    `;
+    screen.style.display = 'flex';
+
+    // Trigger animation
+    setTimeout(() => screen.classList.add('show'), 10);
 }
 
 // Solo Mode Logic
@@ -547,8 +596,8 @@ function performAITurn() {
 
                 // Check Win
                 if (GameState.board.checkWin(GameState.aiPlayer.id)) {
-                    alert('AI가 승리했습니다! (AI Won!)');
-                    location.reload();
+                    showDefeatScreen();
+                    setTimeout(() => location.reload(), 3500);
                 } else {
                     advanceSoloTurn();
                 }

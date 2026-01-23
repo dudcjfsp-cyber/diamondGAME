@@ -306,3 +306,86 @@ canvas {
         transform: translate(-50%, -60%);
     }
 }
+
+/* Game Result Screen */
+.game-result-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.game-result-screen.show {
+    opacity: 1;
+}
+
+.result-content {
+    text-align: center;
+    animation: resultBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.result-icon {
+    font-size: 8rem;
+    margin-bottom: 1rem;
+    animation: iconPulse 1.5s ease-in-out infinite;
+}
+
+.result-title {
+    font-size: 5rem;
+    font-weight: 900;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.1em;
+}
+
+.result-subtitle {
+    font-size: 1.8rem;
+    opacity: 0.8;
+}
+
+.victory-content .result-title {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(251, 191, 36, 0.5);
+}
+
+.defeat-content .result-title {
+    color: #ef4444;
+    text-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes resultBounce {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes iconPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
