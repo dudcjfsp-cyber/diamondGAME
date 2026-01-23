@@ -87,10 +87,10 @@ export class AIPlayer {
                 // Target for P1 is r > 4. Target for P4 is r < -4.
                 const isTargetZone = (this.id === 1 && endHex.r > 4) || (this.id === 4 && endHex.r < -4);
                 if (isTargetZone) {
-                    zoneBonus += 15;
+                    zoneBonus += 50; // Increased from 15 to make goal zone entry top priority
                     // Provide extra incentive to reach the very tip
                     if (endHex.equals(this.targetPoint)) {
-                        zoneBonus += 10;
+                        zoneBonus += 30; // Increased from 10
                     }
                 }
 
